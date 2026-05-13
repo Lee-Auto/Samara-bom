@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Samara — Generador de BOM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:       #0d1117;
+    --ink-soft:  #3a4150;
+    --ink-muted: #6b7280;
+    --paper:     #f7f5f0;
+    --paper-2:   #edeae3;
+    --paper-3:   #e2ddd4;
+    --accent:    #1a3a5c;
+    --accent-2:  #2e6da4;
+    --highlight: #c8a96e;
+    --green:     #2d6a4f;
+    --red:       #9b2335;
+    --white:     #ffffff;
+    --radius:    6px;
+    --shadow:    0 2px 16px rgba(13,17,23,0.10);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--accent);
+    color: var(--white);
+    padding: 0 40px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.2);
+  }
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-badge {
+    background: var(--highlight);
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+  .header-right {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.08em;
+  }
+
+  /* ── LAYOUT ── */
+  .app {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    min-height: calc(100vh - 64px);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background: var(--white);
+    border-right: 1px solid var(--paper-3);
+    padding: 32px 28px;
+    overflow-y: auto;
+  }
+  .sidebar-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 24px;
+  }
+
+  /* ── SECTION ── */
+  .config-section {
+    margin-bottom: 28px;
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent-2);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--paper-3);
+  }
+
+  /* ── OPTION CARDS ── */
+  .options-grid {
+    display: grid;
+    gap: 8px;
+  }
+  .options-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .options-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .opt-card {
+    border: 1.5px solid var(--paper-3);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background: var(--white);
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .opt-card:hover {
+    border-color: var(--accent-2);
+    background: #f0f6fc;
+  }
+  .opt-card.selected {
+    border-color: var(--accent);
+    background: #eaf1f9;
+    box-shadow: 0 0 0 2px rgba(26,58,92,0.15);
+  }
+  .opt-card .opt-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .opt-card .opt-sub {
+    font-size: 11px;
+    color: var(--ink-muted);
+    font-family: 'DM Mono', monospace;
+  }
+  .opt-card.selected .opt-name { color: var(--accent); }
+
+  /* color swatches */
+  .swatch-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatch {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2.5px solid transparent;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .swatch:hover { transform: scale(1.1); }
+  .swatch.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--white), 0 0 0 4px var(--accent);
+  }
+  .swatch::after {
+    content: attr(data-label);
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    white-space: nowrap;
+    color: var(--ink-muted);
+    font-family: 'DM Mono', monospace;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .swatch:hover::after { opacity: 1; }
+
+  /* toggle switches */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--paper-2);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-info .toggle-name { font-weight: 500; font-size: 13px; }
+  .toggle-info .toggle-desc { font-size: 11px; color: var(--ink-muted); }
+  .toggle-switch {
+    width: 40px; height: 22px;
+    background: var(--paper-3);
+    border-radius: 11px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-switch.on { background: var(--accent); }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+  .toggle-switch.on::after { transform: translateX(18px); }
+
+  /* generate button */
+  .btn-generate {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    padding: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-generate:hover { background: #152e4a; transform: translateY(-1px); box-shadow: var(--shadow); }
+  .btn-generate:active { transform: translateY(0); }
+
+  /* ── MAIN CONTENT ── */
+  .main {
+    padding: 32px 36px;
+    overflow-y: auto;
+  }
+  .main-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+  .main-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+  .main-subtitle {
+    font-size: 13px;
+    color: var(--ink-muted);
+    margin-top: 4px;
+  }
+  .export-btns {
+    display: flex;
+    gap: 8px;
+  }
+  .btn-export {
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1.5px solid;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-export.excel {
+    background: #e8f5e9; color: var(--green); border-color: #a5d6a7;
+  }
+  .btn-export.excel:hover { background: #c8e6c9; }
+  .btn-export.pdf {
+    background: #fdecea; color: var(--red); border-color: #ef9a9a;
+  }
+  .btn-export.pdf:hover { background: #ffcdd2; }
+
+  /* ── SUMMARY CARDS ── */
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .summary-card {
+    background: var(--white);
+    border: 1px solid var(--paper-3);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .summary-card .sc-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 6px;
+  }
+  .summary-card .sc-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--accent);
+  }
+  .summary-card .sc-sub {
+    font-size: 11px;
+    color: var(--ink-muted);
+    margin-top: 2px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── BOM TABLE ── */
+  .bom-section { margin-bottom: 28px; }
+  .bom-section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 16px;
+    color: var(--accent);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--paper-3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bom-section-title .cat-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    background: var(--paper-2);
+    color: var(--ink-muted);
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-weight: 500;
+  }
+
+  table.bom-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  table.bom-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    border-bottom: 1px solid var(--paper-3);
+    background: var(--paper);
+  }
+  table.bom-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--paper-2);
+    vertical-align: middle;
+  }
+  table.bom-table tr:last-child td { border-bottom: none; }
+  table.bom-table tr:hover td { background: #f8f6f2; }
+  table.bom-table td.sku {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent-2);
+  }
+  table.bom-table td.qty {
+    font-weight: 600;
+    color: var(--ink);
+  }
+  table.bom-table td.unit {
+    color: var(--ink-muted);
+    font-size: 12px;
+  }
+  table.bom-table td.tag-cell {}
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-weight: 500;
+    font-family: 'DM Mono', monospace;
+  }
+  .tag.base { background: #e3f0fb; color: #1a5f9e; }
+  .tag.opt  { background: #fff3e0; color: #b8600a; }
+  .tag.addon { background: #e8f5e9; color: #2d6a4f; }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 400px;
+    gap: 16px;
+    color: var(--ink-muted);
+  }
+  .empty-icon {
+    font-size: 48px;
+    opacity: 0.3;
+  }
+  .empty-text {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--ink-soft);
+  }
+  .empty-sub { font-size: 13px; text-align: center; max-width: 280px; }
+
+  /* ── ANIMATIONS ── */
+  .fade-in {
+    animation: fadeIn 0.3s ease forwards;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── CONFIG SUMMARY TAG ── */
+  .config-tag {
+    background: var(--paper-2);
+    border: 1px solid var(--paper-3);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 20px;
+    line-height: 1.8;
+  }
+  .config-tag strong { color: var(--accent); }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .summary-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    Samara
+    <span class="logo-badge">BOM Generator</span>
+  </div>
+  <div class="header-right">DEMO v1.0 · Alfa Omega Automatizaciones</div>
+</header>
+
+<div class="app">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="sidebar-title">Configuración de Unidad</div>
+
+    <!-- MODELO -->
+    <div class="config-section">
+      <div class="section-label">Modelo</div>
+      <div class="options-grid">
+        <div class="opt-card selected" data-group="model" data-value="studio" onclick="selectOption(this,'model')">
+          <span class="opt-name">Studio</span>
+          <span class="opt-sub">420 ft² · 1 baño</span>
+        </div>
+        <div class="opt-card" data-group="model" data-value="onebed" onclick="selectOption(this,'model')">
+          <span class="opt-name">One Bedroom</span>
+          <span class="opt-sub">540 ft² · 1 bañ</span>
+        </div>
+        <div class="opt-card" data-group="model" data-value="twobed" onclick="selectOption(this,'model')">
+          <span class="opt-name">Two Bedroom</span>
+          <span class="opt-sub">690 ft² · 1 baño</span>
+        </div>
+        <div class="opt-card" data-group="model" data-value="xl8" onclick="selectOption(this,'model')">
+          <span class="opt-name">XL 8</span>
+          <span class="opt-sub">800 ft² · 2 baños</span>
+        </div>
+        <div class="opt-card" data-group="model" data-value="xl10" onclick="selectOption(this,'model')">
+          <span class="opt-name">XL 10</span>
+          <span class="opt-sub">950 ft² · 2 baños</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLOR EXTERIOR -->
+    <div class="config-section">
+      <div class="section-label">Color Exterior</div>
+      <div class="swatch-row" style="margin-bottom:18px">
+        <div class="swatch selected" style="background:#f5f0e8" data-group="exterior" data-value="bonewhite" data-label="Bone White" onclick="selectSwatch(this,'exterior')" title="Bone White"></div>
+        <div class="swatch" style="background:#2c2c2c" data-group="exterior" data-value="charcoal" data-label="Charcoal" onclick="selectSwatch(this,'exterior')" title="Charcoal"></div>
+        <div class="swatch" style="background:#8fada3" data-group="exterior" data-value="sage" data-label="Sage" onclick="selectSwatch(this,'exterior')" title="Sage"></div>
+        <div class="swatch" style="background:#c4a882" data-group="exterior" data-value="sand" data-label="Sand" onclick="selectSwatch(this,'exterior')" title="Sand"></div>
+        <div class="swatch" style="background:#4a5568" data-group="exterior" data-value="slate" data-label="Slate" onclick="selectSwatch(this,'exterior')" title="Slate"></div>
+      </div>
+    </div>
+
+    <!-- ACABADO INTERIOR -->
+    <div class="config-section">
+      <div class="section-label">Acabado Interior</div>
+      <div class="options-grid cols-2">
+        <div class="opt-card selected" data-group="interior" data-value="light" onclick="selectOption(this,'interior')">
+          <span class="opt-name">Light</span>
+          <span class="opt-sub">Madera clara</span>
+        </div>
+        <div class="opt-card" data-group="interior" data-value="dark" onclick="selectOption(this,'interior')">
+          <span class="opt-name">Dark</span>
+          <span class="opt-sub">Madera oscura</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PISO -->
+    <div class="config-section">
+      <div class="section-label">Tipo de Piso</div>
+      <div class="options-grid cols-3">
+        <div class="opt-card selected" data-group="floor" data-value="hardwood" onclick="selectOption(this,'floor')">
+          <span class="opt-name">Hardwood</span>
+          <span class="opt-sub">Roble</span>
+        </div>
+        <div class="opt-card" data-group="floor" data-value="tile" onclick="selectOption(this,'floor')">
+          <span class="opt-name">Tile</span>
+          <span class="opt-sub">Porcelanato</span>
+        </div>
+        <div class="opt-card" data-group="floor" data-value="concrete" onclick="selectOption(this,'floor')">
+          <span class="opt-name">Concrete</span>
+          <span class="opt-sub">Pulido</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD-ONS -->
+    <div class="config-section">
+      <div class="section-label">Add-ons</div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-name">Deck Exterior</div>
+          <div class="toggle-desc">Madera tratada 6×4m</div>
+        </div>
+        <div class="toggle-switch" id="tog-deck" onclick="toggleAddon('deck')"></div>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-name">Awning / Toldo</div>
+          <div class="toggle-desc">Aluminio retráctil</div>
+        </div>
+        <div class="toggle-switch" id="tog-awning" onclick="toggleAddon('awning')"></div>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-name">Panel Solar</div>
+          <div class="toggle-desc">Sistema 5kW incluido</div>
+        </div>
+        <div class="toggle-switch on" id="tog-solar" onclick="toggleAddon('solar')"></div>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-name">Escalera Exterior</div>
+          <div class="toggle-desc">Acero galvanizado</div>
+        </div>
+        <div class="toggle-switch" id="tog-stairs" onclick="toggleAddon('stairs')"></div>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-name">Smart Home Kit</div>
+          <div class="toggle-desc">Thermostat + cerraduras</div>
+        </div>
+        <div class="toggle-switch" id="tog-smart" onclick="toggleAddon('smart')"></div>
+      </div>
+    </div>
+
+    <button class="btn-generate" onclick="generateBOM()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      Generar BOM
+    </button>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="main" id="main-content">
+    <div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <div class="empty-text">Configura tu unidad</div>
+      <div class="empty-sub">Selecciona las opciones del panel izquierdo y presiona "Generar BOM" para ver la lista de materiales completa.</div>
+    </div>
+  </main>
+
+</div>
+
+<script src="bom-data.js"></script>
+<script>
+  // ── STATE ──
+  const state = {
+    model: 'studio',
+    exterior: 'bonewhite',
+    interior: 'light',
+    floor: 'hardwood',
+    addons: { deck: false, awning: false, solar: true, stairs: false, smart: false }
+  };
+
+  function selectOption(el, group) {
+    document.querySelectorAll(`[data-group="${group}"]`).forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    state[group] = el.dataset.value;
+  }
+
+  function selectSwatch(el, group) {
+    document.querySelectorAll(`[data-group="${group}"]`).forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    state[group] = el.dataset.value;
+  }
+
+  function toggleAddon(key) {
+    state.addons[key] = !state.addons[key];
+    const el = document.getElementById(`tog-${key}`);
+    el.classList.toggle('on', state.addons[key]);
+  }
+
+  function generateBOM() {
+    const bom = buildBOM(state);
+    renderBOM(bom);
+  }
+
+  function renderBOM(bom) {
+    const container = document.getElementById('main-content');
+
+    const modelNames = { studio:'Studio', onebed:'One Bedroom', twobed:'Two Bedroom', xl8:'XL 8', xl10:'XL 10' };
+    const extNames   = { bonewhite:'Bone White', charcoal:'Charcoal', sage:'Sage', sand:'Sand', slate:'Slate' };
+    const intNames   = { light:'Light', dark:'Dark' };
+    const flrNames   = { hardwood:'Hardwood / Roble', tile:'Porcelanato', concrete:'Concreto Pulido' };
+
+    const addOnList = Object.entries(state.addons).filter(([,v])=>v).map(([k])=>k).join(', ') || 'ninguno';
+
+    const totalItems = bom.reduce((a,s)=>a+s.items.length, 0);
+    const totalPiezas = bom.reduce((a,s)=>s.items.reduce((b,i)=>b+i.qty,a), 0);
+    const cats = bom.length;
+    const opts = bom.reduce((a,s)=>s.items.filter(i=>i.tag==='opt'||i.tag==='addon').length+a, 0);
+
+    let html = `
+    <div class="fade-in">
+      <div class="main-header">
+        <div>
+          <div class="main-title">Bill of Materials</div>
+          <div class="main-subtitle">Generado · ${new Date().toLocaleString('es-MX', {dateStyle:'medium', timeStyle:'short'})}</div>
+        </div>
+        <div class="export-btns">
+          <button class="btn-export excel" onclick="exportCSV()">↓ Excel / CSV</button>
+          <button class="btn-export pdf" onclick="window.print()">↓ Imprimir / PDF</button>
+        </div>
+      </div>
+
+      <div class="config-tag">
+        <strong>Modelo:</strong> ${modelNames[state.model]} &nbsp;·&nbsp;
+        <strong>Exterior:</strong> ${extNames[state.exterior]} &nbsp;·&nbsp;
+        <strong>Interior:</strong> ${intNames[state.interior]} &nbsp;·&nbsp;
+        <strong>Piso:</strong> ${flrNames[state.floor]} &nbsp;·&nbsp;
+        <strong>Add-ons:</strong> ${addOnList}
+      </div>
+
+      <div class="summary-row">
+        <div class="summary-card">
+          <div class="sc-label">Total SKUs</div>
+          <div class="sc-value">${totalItems}</div>
+          <div class="sc-sub">partidas únicas</div>
+        </div>
+        <div class="summary-card">
+          <div class="sc-label">Total Piezas</div>
+          <div class="sc-value">${totalPiezas.toLocaleString()}</div>
+          <div class="sc-sub">unidades totales</div>
+        </div>
+        <div class="summary-card">
+          <div class="sc-label">Categorías</div>
+          <div class="sc-value">${cats}</div>
+          <div class="sc-sub">grupos de material</div>
+        </div>
+        <div class="summary-card">
+          <div class="sc-label">Ítems por opción</div>
+          <div class="sc-value">${opts}</div>
+          <div class="sc-sub">variables / add-ons</div>
+        </div>
+      </div>
+    `;
+
+    bom.forEach(section => {
+      html += `
+      <div class="bom-section">
+        <div class="bom-section-title">
+          ${section.category}
+          <span class="cat-badge">${section.items.length} ítems</span>
+        </div>
+        <table class="bom-table">
+          <thead>
+            <tr>
+              <th style="width:110px">SKU</th>
+              <th>Descripción</th>
+              <th style="width:70px">Cant.</th>
+              <th style="width:70px">Unidad</th>
+              <th style="width:70px">Tipo</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      section.items.forEach(item => {
+        const tagLabel = { base:'BASE', opt:'OPCIÓN', addon:'ADD-ON' }[item.tag];
+        html += `
+            <tr>
+              <td class="sku">${item.sku}</td>
+              <td>${item.desc}</td>
+              <td class="qty">${item.qty}</td>
+              <td class="unit">${item.unit}</td>
+              <td class="tag-cell"><span class="tag ${item.tag}">${tagLabel}</span></td>
+            </tr>
+        `;
+      });
+      html += `</tbody></table></div>`;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+  }
+
+  function exportCSV() {
+    const bom = buildBOM(state);
+    let csv = 'Categoría,SKU,Descripción,Cantidad,Unidad,Tipo\n';
+    bom.forEach(s => {
+      s.items.forEach(i => {
+        csv += `"${s.category}","${i.sku}","${i.desc}",${i.qty},"${i.unit}","${i.tag}"\n`;
+      });
+    });
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `BOM_Samara_${state.model}_${Date.now()}.csv`;
+    a.click();
+  }
+
+  // Auto-generate on load for demo
+  window.addEventListener('load', () => setTimeout(generateBOM, 200));
+</script>
+</body>
+</html>
